@@ -67,12 +67,31 @@ function toast(msg, isError) {
 }
 
 // ---------------- auth ----------------
+// The admin portal is intentionally unadvertised: there is NO button on the
+// public form. Admins reach the login by visiting /requisitions/#admin (or
+// ?admin). An already logged-in admin lands straight in the review view.
+function wantsAdmin() {
+  if ((location.hash || "").toLowerCase() === "#admin") return true;
+  try { return new URLSearchParams(location.search).has("admin"); } catch { return false; }
+}
+
+// Strip the #admin / ?admin marker from the address bar so it doesn't linger
+// (e.g. a reload after cancelling would otherwise reopen the login).
+function clearAdminUrl() {
+  try {
+    if (location.hash || new URLSearchParams(location.search).has("admin")) {
+      history.replaceState(null, "", location.pathname);
+    }
+  } catch {}
+}
+
 async function boot() {
   try {
     const { authenticated } = await (await fetch("/api/req/session", { credentials: "same-origin" })).json();
     isApprover = !!authenticated;
   } catch { isApprover = false; }
-  showApp();
+  if (!isApprover && wantsAdmin()) showAdminLogin();
+  else showApp();
 }
 
 function showAdminLogin() {
@@ -88,7 +107,6 @@ function applyRole() {
   document.querySelector(".totals").classList.toggle("hide", !isApprover);
   document.querySelector(".tabs").classList.toggle("hide", !isApprover);
   document.getElementById("logout-btn").classList.toggle("hide", !isApprover);
-  document.getElementById("admin-login-btn").classList.toggle("hide", isApprover);
 
   if (isApprover) {
     document.getElementById("tab-new").classList.add("hide");
@@ -132,10 +150,10 @@ async function loadConfigOnce() {
   if (freq) KUI.enhanceSelect(freq);
 }
 
-document.getElementById("admin-login-btn").addEventListener("click", showAdminLogin);
 document.getElementById("login-cancel").addEventListener("click", (e) => {
   e.preventDefault();
   document.getElementById("login-alert").innerHTML = "";
+  clearAdminUrl();
   showApp();
 });
 
@@ -153,6 +171,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
     if (res.ok && data.ok) {
       document.getElementById("passcode").value = "";
       isApprover = true;
+      clearAdminUrl();
       showApp();
     } else {
       alertEl.innerHTML = `<div class="alert alert--error">${esc(data.error || "Incorrect passcode.")}</div>`;
