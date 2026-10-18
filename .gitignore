@@ -8,3 +8,4 @@ dist/
 # Local-only working notes and session memory (never publish)
 .remember/
 .claude/
+.playwright-mcp/
