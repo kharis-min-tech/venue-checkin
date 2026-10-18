@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spurgeon's Centre Venue Visit</title>
+  <meta name="description" content="Book a time slot to visit the Kharis venue." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <img class="logo" src="/logo.svg" alt="Kharis Church" width="44" height="44" />
+      <div>
+        <h1>Spurgeon's Centre Venue Visit</h1>
+        <p>Reserve a time slot to come and see the new building.</p>
+      </div>
+    </header>
+
+    <div class="notice notice--info" role="status">
+      <span class="notice-ic" aria-hidden="true">⏳</span>
+      <div>Please note: <strong>Saturday 17 October</strong> is the last day for venue tours for now. Bookings will then pause and reopen again later, so please check back soon.</div>
+    </div>
+
+    <div class="notice notice--warn" role="alert">
+      <span class="notice-ic" aria-hidden="true">⚠</span>
+      <div><strong>You must book before you visit or you will be denied entry at the gate. Please book below </strong></div>
+    </div>
+
+    <!-- Already booked? Jump straight to the manage page -->
+    <a class="manage-cta" href="/manage">
+      <span class="manage-cta-ic" aria-hidden="true">📅</span>
+      <span class="manage-cta-text"><strong>Already booked?</strong> Reschedule your date or time, or cancel your visit.</span>
+      <span class="manage-cta-arrow" aria-hidden="true">&rarr;</span>
+    </a>
+
+    <!-- Booking form -->
+    <form id="booking-form" novalidate>
+      <div class="card">
+        <h2><span class="step-num">1</span>Choose your day &amp; time</h2>
+        <p class="hint">Pick a date, then choose from the available times. <strong>Please arrive 15 minutes before your session.</strong> If you're more than 15 minutes late, your booking is automatically cancelled and you'll be refused entry.</p>
+
+        <div class="field" id="field-visit_date">
+          <label for="visit_date">Date of visit</label>
+          <input type="date" id="visit_date" name="visit_date" required />
+          <div class="field-error">Please choose a valid date.</div>
+        </div>
+
+        <label style="margin-top:16px;">Time slot</label>
+        <div class="slots" id="slots"><div class="spin">Pick a date to see available slots…</div></div>
+        <div class="field" id="field-slot"><div class="field-error">Please choose a time slot.</div></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step-num">2</span>Your details</h2>
+
+        <div class="field" id="field-full_name">
+          <label for="full_name">Full name</label>
+          <input type="text" id="full_name" name="full_name" autocomplete="name" required />
+          <div class="field-error">Please enter your full name.</div>
+        </div>
+
+        <div class="field" id="field-branch">
+          <label for="branch">Your branch</label>
+          <select id="branch" name="branch" required>
+            <option value="">Select your branch…</option>
+          </select>
+          <div class="field-error">Please select your branch.</div>
+        </div>
+
+        <div class="field" id="field-purpose">
+          <label for="purpose">Purpose of visit</label>
+          <textarea id="purpose" name="purpose" placeholder="e.g. Viewing the new building" required></textarea>
+          <div class="field-error">Please tell us the purpose of your visit.</div>
+        </div>
+
+        <div class="row2">
+          <div class="field" id="field-phone">
+            <label for="phone">Phone number</label>
+            <input type="tel" id="phone" name="phone" autocomplete="tel" required />
+            <div class="field-error">Please enter a valid phone number.</div>
+          </div>
+          <div class="field" id="field-vehicle_reg">
+            <label for="vehicle_reg">Vehicle registration <span class="opt">(if driving)</span></label>
+            <input type="text" id="vehicle_reg" name="vehicle_reg" autocomplete="off" placeholder="e.g. AB12 CDE" />
+          </div>
+        </div>
+      </div>
+
+      <div id="form-alert"></div>
+      <button type="submit" class="btn btn--lg btn--block" id="submit-btn">Book my visit</button>
+    </form>
+
+    <!-- Confirmation (hidden until booked) -->
+    <div class="card confirm hide" id="confirmation">
+      <div class="tick">✓</div>
+      <h2>You're booked in!</h2>
+      <p class="detail">Show this reference at the gate, along with photo ID.</p>
+      <div class="ref-box" id="confirm-ref">—</div>
+      <p class="detail" id="confirm-when">—</p>
+      <p class="detail" id="confirm-who">—</p>
+      <div class="confirm-note">⏰ Please arrive <strong>15 minutes before</strong> your session. If you're more than 15 minutes late your booking is cancelled automatically and you'll be refused entry.</div>
+      <p class="detail mt">Wrong date, or need to change or cancel? <a id="manage-link" href="/manage">Manage your booking</a></p>
+      <button type="button" class="btn btn--ghost mt" id="book-another">Book another visit</button>
+    </div>
+
+    <p class="foot">Kharis Church Spurgeon's Centre Check-in &middot; <a href="/manage">Manage a booking</a></p>
+  </main>
+
+  <script src="/js/ui.js"></script>
+  <script src="/js/booking.js"></script>
+</body>
+</html>

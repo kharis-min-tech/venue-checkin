@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kharis Church Spurgeon's Centre Check-In Admin Portal</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <!-- LOGIN -->
+  <main class="wrap" id="login-view">
+    <header class="masthead">
+      <img class="logo" src="/logo.svg" alt="Kharis Church" width="44" height="44" />
+      <div>
+        <h1>Staff Check-in</h1>
+        <p>Enter the staff passcode to continue.</p>
+      </div>
+    </header>
+    <form class="card" id="login-form" novalidate style="max-width:420px;margin:0 auto;">
+      <div class="field" id="field-passcode">
+        <label for="passcode">Staff passcode</label>
+        <input type="password" id="passcode" autocomplete="current-password" autofocus />
+        <div class="field-error">Please enter the passcode.</div>
+      </div>
+      <div id="login-alert"></div>
+      <button type="submit" class="btn btn--block mt" id="login-btn">Log in</button>
+    </form>
+    <p class="foot"><a href="/">← Back to booking form</a></p>
+  </main>
+
+  <!-- APP -->
+  <main class="wrap wrap--wide hide" id="app-view">
+    <div class="topbar">
+      <div class="masthead" style="margin:0;">
+        <img class="logo" src="/logo.svg" alt="Kharis Church" width="44" height="44" />
+        <div>
+          <h1>Kharis Church Spurgeon's Centre Check-in</h1>
+          <p id="today-label">—</p>
+        </div>
+      </div>
+      <button class="btn btn--ghost btn--sm" id="logout-btn">Log out</button>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="gate">Gate check-in</button>
+      <button class="tab" data-tab="onsite">On site now <span class="count" id="onsite-count"></span></button>
+      <button class="tab" data-tab="visitor">Sign in worker</button>
+      <button class="tab" data-tab="history">History &amp; export</button>
+      <button class="tab" data-tab="schedule">Opening times</button>
+    </nav>
+
+    <!-- GATE -->
+    <section id="tab-gate">
+      <div class="card">
+        <h2>Find a booking</h2>
+        <p class="hint">Search by name, branch or reference code to verify and sign someone in.</p>
+        <input type="search" id="search-box" placeholder="Type a name or reference, e.g. Mary or K7F2Q" autocomplete="off" />
+        <div id="search-results" class="mt"></div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <label for="gate-date">Bookings for</label>
+            <input type="date" id="gate-date" />
+          </div>
+          <button class="btn btn--ghost btn--sm" id="gate-refresh">Refresh</button>
+        </div>
+        <div id="gate-day"></div>
+      </div>
+    </section>
+
+    <!-- ON SITE -->
+    <section id="tab-onsite" class="hide">
+      <div class="card">
+        <div class="toolbar" style="justify-content:space-between;">
+          <h2 style="margin:0;">Currently on site</h2>
+          <button class="btn btn--ghost btn--sm" id="onsite-refresh">Refresh</button>
+        </div>
+        <div id="onsite-list" class="mt"></div>
+      </div>
+    </section>
+
+    <!-- ADD WORKER / CONTRACTOR -->
+    <section id="tab-visitor" class="hide">
+      <form class="card" id="visitor-form" novalidate>
+        <h2>Sign in a worker or contractor</h2>
+        <p class="hint">For people here to work (not touring). They're checked in straight away.</p>
+
+        <label>Who are they?</label>
+        <div class="segmented" id="v-kind" role="tablist">
+          <button type="button" data-kind="worker" class="active">Kharis worker / member</button>
+          <button type="button" data-kind="contractor">External contractor</button>
+        </div>
+
+        <div class="field mt" id="field-v_full_name">
+          <label for="v_full_name">Full name</label>
+          <input type="text" id="v_full_name" />
+          <div class="field-error">Please enter the name.</div>
+        </div>
+
+        <div class="field" id="field-v_branch">
+          <label for="v_branch">Their branch</label>
+          <select id="v_branch"><option value="">Select branch…</option></select>
+          <div class="field-error">Please select the branch.</div>
+        </div>
+
+        <div class="field hide" id="field-v_company">
+          <label for="v_company">Company <span class="opt">(optional)</span></label>
+          <input type="text" id="v_company" placeholder="e.g. Acme Plumbing" />
+        </div>
+
+        <div class="field" id="field-v_purpose">
+          <label for="v_purpose">What work are they doing?</label>
+          <input type="text" id="v_purpose" placeholder="e.g. Fixing the mains valve" />
+          <div class="field-error">Please enter the purpose of the visit.</div>
+        </div>
+
+        <div class="field" id="field-v_vehicle_reg">
+          <label for="v_vehicle_reg">Vehicle registration <span class="opt">(if driving)</span></label>
+          <input type="text" id="v_vehicle_reg" placeholder="e.g. AB12 CDE" />
+        </div>
+
+        <label>Signature</label>
+        <div class="sigpad-wrap">
+          <canvas id="sigpad" class="sigpad"></canvas>
+          <div class="sig-row">
+            <span class="muted" style="font-size:.82rem;">Sign above with finger or mouse</span>
+            <button type="button" class="btn btn--ghost btn--sm" id="sig-clear">Clear</button>
+          </div>
+        </div>
+
+        <div id="visitor-alert" class="mt"></div>
+        <button type="submit" class="btn btn--lg btn--block mt" id="visitor-btn">Check in</button>
+      </form>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="tab-history" class="hide">
+      <div class="card">
+        <h2>History &amp; CSV export</h2>
+        <p class="hint">View everyone who booked or checked in over a date range, and download it as a spreadsheet.</p>
+        <div class="toolbar">
+          <div><label for="hist-from">From</label><input type="date" id="hist-from" /></div>
+          <div><label for="hist-to">To</label><input type="date" id="hist-to" /></div>
+          <button class="btn btn--sm" id="hist-load">Show</button>
+          <button class="btn btn--success btn--sm" id="hist-export">⬇ Download CSV</button>
+        </div>
+        <div id="hist-summary" class="muted mt"></div>
+        <div id="hist-results" class="mt table-scroll"></div>
+      </div>
+    </section>
+
+    <!-- SCHEDULE -->
+    <section id="tab-schedule" class="hide">
+      <div class="card">
+        <h2>Opening times &amp; capacity</h2>
+        <p class="hint">Set the time slots and how many people can book each slot, for a specific day. Days you don't customise use the standard times (9:00&nbsp;AM–5:00&nbsp;PM, two-hour slots, 30 per slot). Members never see the capacity.</p>
+
+        <div class="toolbar">
+          <div><label for="sched-date">Day</label><input type="date" id="sched-date" /></div>
+          <button class="btn btn--ghost btn--sm" id="sched-load">Load day</button>
+        </div>
+        <div id="sched-status" class="muted mt"></div>
+
+        <div id="sched-body" class="mt">
+          <label class="switch-row">
+            <input type="checkbox" id="sched-open" checked />
+            <span>Open this day for booking</span>
+          </label>
+
+          <div id="sched-open-body">
+            <label for="sched-capacity">Capacity per slot</label>
+            <input type="number" id="sched-capacity" min="1" max="100000" inputmode="numeric" style="max-width:170px;" />
+
+            <div class="gen-box">
+              <div class="gen-title">Quick generator</div>
+              <p class="hint" style="margin:0 0 10px;">Fill these in and press Generate to build the slot list automatically.</p>
+              <div class="gen-grid">
+                <div><label for="gen-start">First slot starts</label><input type="time" id="gen-start" value="14:00" /></div>
+                <div><label for="gen-end">Last slot ends by</label><input type="time" id="gen-end" value="17:00" /></div>
+                <div><label for="gen-length">Each slot lasts (mins)</label><input type="number" id="gen-length" min="5" step="5" value="60" /></div>
+                <div><label for="gen-interval">Break between slots (mins)</label><input type="number" id="gen-interval" min="0" step="5" value="30" /></div>
+              </div>
+              <button type="button" class="btn btn--ghost btn--sm mt" id="gen-run">Generate slots</button>
+            </div>
+
+            <label style="margin-top:18px;">Time slots</label>
+            <div id="sched-slots"></div>
+            <button type="button" class="btn btn--ghost btn--sm mt" id="sched-add-slot">+ Add a slot</button>
+          </div>
+        </div>
+
+        <div id="sched-alert" class="mt"></div>
+        <div class="toolbar mt">
+          <button class="btn" id="sched-save">Save this day</button>
+          <button class="btn btn--danger btn--sm" id="sched-reset">Reset to standard</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/ui.js"></script>
+  <script src="/js/staff.js"></script>
+</body>
+</html>

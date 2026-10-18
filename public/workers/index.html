@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spurgeon's Centre Site Sign-In</title>
+  <meta name="description" content="Workers and contractors sign in at the Spurgeon's Centre." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <img class="logo" src="/logo.svg" alt="Kharis Church" width="44" height="44" />
+      <div>
+        <h1>Spurgeon's Centre Site Sign-In</h1>
+        <p>For workers &amp; contractors on site.</p>
+      </div>
+    </header>
+
+    <div class="segmented" id="mode">
+      <button type="button" data-mode="in" class="active">Sign in</button>
+      <button type="button" data-mode="out">Sign out</button>
+    </div>
+
+    <!-- SIGN IN -->
+    <form class="card mt" id="signin-form" novalidate>
+      <p class="hint">Here to work at the Spurgeon's Centre? Please sign in to register your presence on site.</p>
+
+      <label>I am a…</label>
+      <div class="segmented" id="kind">
+        <button type="button" data-kind="worker" class="active">Kharis worker / member</button>
+        <button type="button" data-kind="contractor">External contractor</button>
+      </div>
+
+      <div class="field mt" id="field-full_name">
+        <label for="full_name">Full name</label>
+        <input type="text" id="full_name" autocomplete="name" />
+        <div class="field-error">Please enter your full name.</div>
+      </div>
+
+      <div class="field" id="field-branch">
+        <label for="branch">Your branch</label>
+        <select id="branch"><option value="">Select your branch…</option></select>
+        <div class="field-error">Please select your branch.</div>
+      </div>
+
+      <div class="field hide" id="field-company">
+        <label for="company">Company <span class="opt">(optional)</span></label>
+        <input type="text" id="company" placeholder="e.g. Acme Plumbing" />
+      </div>
+
+      <div class="field" id="field-purpose">
+        <label for="purpose">What work are you here to do?</label>
+        <input type="text" id="purpose" placeholder="e.g. Electrical inspection" />
+        <div class="field-error">Please say what work you're here to do.</div>
+      </div>
+
+      <div class="field" id="field-vehicle_reg">
+        <label for="vehicle_reg">Vehicle registration <span class="opt">(if driving)</span></label>
+        <input type="text" id="vehicle_reg" autocomplete="off" placeholder="e.g. AB12 CDE" />
+      </div>
+
+      <label>Signature</label>
+      <div class="sigpad-wrap">
+        <canvas id="sigpad" class="sigpad"></canvas>
+        <div class="sig-row">
+          <span class="muted" style="font-size:.82rem;">Sign above with finger or mouse</span>
+          <button type="button" class="btn btn--ghost btn--sm" id="sig-clear">Clear</button>
+        </div>
+      </div>
+
+      <div class="field" id="field-safety_ack">
+        <label class="ack-row">
+          <input type="checkbox" id="safety_ack" />
+          <span>I agree to follow the Spurgeon's Centre's health &amp; safety rules while on site.</span>
+        </label>
+        <div class="field-error">Please confirm you'll follow the site safety rules.</div>
+      </div>
+
+      <div id="signin-alert" class="mt"></div>
+      <button type="submit" class="btn btn--lg btn--block mt" id="signin-btn">Sign in</button>
+    </form>
+
+    <!-- SIGN OUT -->
+    <div class="card mt hide" id="signout-view">
+      <h2>Sign out</h2>
+      <p class="hint">Leaving? Type your name to find your sign-in, then tap Sign out.</p>
+      <input type="search" id="signout-search" placeholder="Type your name" autocomplete="off" />
+      <div id="signout-results" class="mt"></div>
+    </div>
+
+    <!-- CONFIRMATION -->
+    <div class="card confirm hide" id="confirm-view">
+      <div class="tick">✓</div>
+      <h2 id="confirm-title">You're signed in</h2>
+      <p class="detail" id="confirm-detail">—</p>
+      <button type="button" class="btn btn--ghost mt" id="confirm-done">Done</button>
+    </div>
+
+    <p class="foot">Kharis Church Spurgeon's Centre</p>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/ui.js"></script>
+  <script src="/js/workers.js"></script>
+</body>
+</html>

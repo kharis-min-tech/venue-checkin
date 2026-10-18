@@ -1,0 +1,16 @@
+{
+  "name": "venue-checkin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kharis venue visit check-in system (Cloudflare Worker + D1)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init:local": "wrangler d1 execute venue-checkin-db --local --file=./schema.sql",
+    "db:init:remote": "wrangler d1 execute venue-checkin-db --remote --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.40.0"
+  }
+}

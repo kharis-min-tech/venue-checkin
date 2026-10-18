@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+dist/
+
+# Local-only working notes and session memory (never publish)
+.remember/
+.claude/

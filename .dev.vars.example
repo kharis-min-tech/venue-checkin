@@ -1,0 +1,18 @@
+# Example local development variables for `wrangler dev`.
+# Copy this file to `.dev.vars` and set your own values. `.dev.vars` is
+# git-ignored and must never be committed. In production these are set with
+# `npx wrangler secret put <NAME>` instead (see README).
+
+# Passcode your security team types to log in to the staff dashboard (/staff/).
+STAFF_PASSCODE="change-me-staff"
+
+# A long random string used to sign login session cookies.
+SESSION_SECRET="change-me-to-a-long-random-string"
+
+# Admin passcode for the /requisitions spend log + approve/decline review.
+# The /requisitions request form is public; only the review area uses this.
+REQUISITIONS_APPROVER_PASSCODE="change-me-requisitions-admin"
+
+# Optional/legacy: used as a fallback admin passcode only if the APPROVER one
+# above is not set. Safe to leave unset.
+# REQUISITIONS_PASSCODE="change-me"

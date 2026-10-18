@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "venue-checkin",
+  "main": "src/index.js",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    // Every minute: auto-cancel bookings not checked in 15 min after their slot start.
+    "crons": ["* * * * *"]
+  },
+  "routes": [
+    { "pattern": "visit-spurgeons-centre.kharis.org", "custom_domain": true }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "venue-checkin-db",
+      "database_id": "2ac210de-fe37-4d70-beae-cacd2ac65402"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manage your booking · Spurgeon's Centre</title>
+  <meta name="description" content="Change or cancel your Spurgeon's Centre visit." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <img class="logo" src="/logo.svg" alt="Kharis Church" width="44" height="44" />
+      <div>
+        <h1>Manage your booking</h1>
+        <p>Change the date/time or cancel your Spurgeon's Centre visit.</p>
+      </div>
+    </header>
+
+    <!-- LOOKUP -->
+    <form class="card" id="lookup-form" novalidate>
+      <p class="hint">Enter your booking reference and the phone number you booked with.</p>
+      <div class="field" id="field-reference">
+        <label for="reference">Booking reference</label>
+        <input type="text" id="reference" placeholder="e.g. K7F2Q" autocomplete="off" autocapitalize="characters" />
+        <div class="field-error">Please enter your booking reference.</div>
+      </div>
+      <div class="field" id="field-phone">
+        <label for="phone">Phone number</label>
+        <input type="tel" id="phone" autocomplete="tel" placeholder="The number you booked with" />
+        <div class="field-error">Please enter your phone number.</div>
+      </div>
+      <div id="lookup-alert"></div>
+      <button type="submit" class="btn btn--lg btn--block mt" id="lookup-btn">Find my booking</button>
+    </form>
+
+    <!-- BOOKING -->
+    <div class="card hide" id="booking-view">
+      <div id="booking-status" class="mt"></div>
+
+      <div class="confirm" style="padding:6px 0 0;">
+        <div class="ref-box" id="b-ref">—</div>
+      </div>
+      <p class="detail center" id="b-when">—</p>
+      <p class="detail center" id="b-who">—</p>
+
+      <div id="booking-actions" class="toolbar mt" style="justify-content:center;"></div>
+      <div id="action-alert" class="mt"></div>
+
+      <!-- RESCHEDULE -->
+      <div class="hide mt" id="reschedule-panel">
+        <h2 style="font-size:1rem;">Pick a new date &amp; time</h2>
+        <p class="hint">Please arrive 15 minutes before your new session.</p>
+        <div class="field" id="field-r_date">
+          <label for="r_date">New date</label>
+          <input type="date" id="r_date" />
+        </div>
+        <label style="margin-top:14px;">New time slot</label>
+        <div class="slots" id="r_slots"><div class="spin">Pick a date to see available times…</div></div>
+        <div id="r_alert" class="mt"></div>
+        <button type="button" class="btn btn--block mt" id="r_confirm">Confirm change</button>
+        <button type="button" class="btn btn--ghost btn--block mt" id="r_back">Back</button>
+      </div>
+
+      <p class="detail center mt"><a href="#" id="lookup-again">← Look up a different booking</a></p>
+    </div>
+
+    <p class="foot">Kharis Church Spurgeon's Centre &middot; <a href="/">Book a new visit</a></p>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/ui.js"></script>
+  <script src="/js/manage.js"></script>
+</body>
+</html>

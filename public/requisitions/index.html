@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spurgeon's Centre Requisitions</title>
+  <meta name="description" content="Log and review venue uplift requisitions for the Spurgeon's Centre." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <!-- ADMIN LOGIN (shown on demand only) -->
+  <main class="wrap hide" id="login-view">
+    <header class="masthead">
+      <img class="logo" src="/logo.svg" alt="Kharis Church" width="44" height="44" />
+      <div>
+        <h1>Requisitions admin</h1>
+        <p>Enter the admin passcode to review and approve requisitions.</p>
+      </div>
+    </header>
+    <form class="card" id="login-form" novalidate style="max-width:420px;margin:0 auto;">
+      <div class="field" id="field-passcode">
+        <label for="passcode">Admin passcode</label>
+        <input type="password" id="passcode" autocomplete="current-password" autofocus />
+        <div class="field-error">Please enter the passcode.</div>
+      </div>
+      <div id="login-alert"></div>
+      <button type="submit" class="btn btn--block mt" id="login-btn">Log in</button>
+      <p class="foot"><a href="#" id="login-cancel">&larr; Back to the request form</a></p>
+    </form>
+  </main>
+
+  <!-- APP: the request form (public) + the spend log / review (admin only) -->
+  <main class="wrap wrap--wide hide" id="app-view">
+    <div class="topbar">
+      <div class="masthead" style="margin:0;">
+        <img class="logo" src="/logo.svg" alt="Kharis Church" width="44" height="44" />
+        <div>
+          <h1>Venue Uplift Requisitions</h1>
+          <p id="topbar-sub">Request funds for improving the venue</p>
+        </div>
+      </div>
+      <button class="btn btn--ghost btn--sm" id="admin-login-btn">Admin login</button>
+      <button class="btn btn--ghost btn--sm hide" id="logout-btn">Log out</button>
+    </div>
+
+    <!-- Headline totals (admin only) -->
+    <div class="totals hide">
+      <div class="stat stat--spent">
+        <div class="stat-label">Approved one-off spend</div>
+        <div class="stat-value" id="stat-approved">&pound;0.00</div>
+        <div class="stat-sub" id="stat-approved-sub">0 one-off approved</div>
+      </div>
+      <div class="stat stat--recurring">
+        <div class="stat-label">Recurring (approved)</div>
+        <div class="stat-value" id="stat-recurring">&pound;0.00 <span class="stat-unit">/ yr</span></div>
+        <div class="stat-sub" id="stat-recurring-sub">0 recurring approved</div>
+      </div>
+      <div class="stat stat--pending">
+        <div class="stat-label">Awaiting approval</div>
+        <div class="stat-value" id="stat-pending">&pound;0.00</div>
+        <div class="stat-sub" id="stat-pending-sub">0 pending</div>
+      </div>
+      <div class="stat stat--cats">
+        <div class="stat-label">One-off spend by category</div>
+        <div class="stat-cats" id="stat-cats"><span class="muted">No approved spend yet.</span></div>
+      </div>
+    </div>
+
+    <nav class="tabs hide">
+      <button class="tab active" data-tab="log">Requests &amp; spend</button>
+      <button class="tab" data-tab="new">+ New request</button>
+    </nav>
+
+    <!-- LOG / REVIEW (admin only) -->
+    <section id="tab-log" class="hide">
+      <div class="card">
+        <div class="toolbar" style="justify-content:space-between;">
+          <div class="segmented req-filter" id="status-filter">
+            <button type="button" class="active" data-status="">All</button>
+            <button type="button" data-status="pending">Pending</button>
+            <button type="button" data-status="approved">Approved</button>
+            <button type="button" data-status="declined">Declined</button>
+          </div>
+          <div class="toolbar" style="margin:0;gap:8px;">
+            <button class="btn btn--ghost btn--sm" id="req-refresh">Refresh</button>
+            <button class="btn btn--success btn--sm" id="req-export">&#8681; Download CSV</button>
+          </div>
+        </div>
+        <div id="req-list" class="mt"></div>
+      </div>
+    </section>
+
+    <!-- NEW REQUEST (public) -->
+    <section id="tab-new">
+      <form class="card" id="req-form" novalidate style="max-width:560px;">
+        <h2>New requisition</h2>
+        <p class="hint">Request money to spend on improving the venue. It stays <strong>pending</strong> until an approver reviews it.</p>
+
+        <div class="field" id="field-requestor">
+          <label for="requestor">Your name (requestor)</label>
+          <input type="text" id="requestor" autocomplete="name" />
+          <div class="field-error">Please enter who is requesting this.</div>
+        </div>
+
+        <div class="field" id="field-item">
+          <label for="item">Item</label>
+          <input type="text" id="item" placeholder="e.g. 20 litres of exterior paint" />
+          <div class="field-error">Please enter the item.</div>
+        </div>
+
+        <div class="field" id="field-kind">
+          <label>Type of cost</label>
+          <div class="segmented kind-toggle" id="kind-toggle" role="group" aria-label="Type of cost">
+            <button type="button" class="active" data-kind="one_off">One-off</button>
+            <button type="button" data-kind="recurring">Recurring</button>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div class="field" id="field-category">
+            <label for="category">What it's for</label>
+            <select id="category"><option value="">Select&hellip;</option></select>
+            <div class="field-error">Please choose what it's for.</div>
+          </div>
+          <div class="field" id="field-cost">
+            <label for="cost" id="cost-label">Cost (&pound;)</label>
+            <input type="text" id="cost" inputmode="decimal" placeholder="e.g. 149.99" />
+            <div class="field-error">Please enter a valid cost in pounds.</div>
+          </div>
+        </div>
+
+        <div class="field hide" id="field-frequency">
+          <label for="frequency">How often</label>
+          <select id="frequency"><option value="">Select&hellip;</option></select>
+          <div class="field-error">Please choose how often this recurs.</div>
+        </div>
+
+        <div class="field" id="field-approver">
+          <label for="approver">Approver</label>
+          <input type="text" id="approver" placeholder="Who signs this off" />
+          <div class="field-error">Please enter who approves this.</div>
+        </div>
+
+        <div class="field" id="field-notes">
+          <label for="notes">Notes <span class="opt">(optional)</span></label>
+          <textarea id="notes" placeholder="Anything useful: supplier, quote reference, why it's needed."></textarea>
+        </div>
+
+        <div id="req-alert" class="mt"></div>
+        <button type="submit" class="btn btn--lg btn--block mt" id="req-submit">Submit requisition</button>
+      </form>
+    </section>
+
+    <p class="foot">Kharis Church Spurgeon's Centre &middot; <a href="/">Booking form</a></p>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/ui.js"></script>
+  <script src="/js/requisitions.js"></script>
+</body>
+</html>
