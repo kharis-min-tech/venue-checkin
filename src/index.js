@@ -848,7 +848,7 @@ function handleReqAdminRoutes(request, env, url, pathname, method) {
 }
 
 const REQ_COLS =
-  "id, reference, created_at, requestor, item, category, cost_pence, kind, frequency, approver, notes, status, decided_at, decided_by";
+  "id, reference, created_at, requestor, item, item_url, category, cost_pence, kind, frequency, approver, notes, status, decided_at, decided_by";
 
 const REQ_STATUSES = ["pending", "approved", "declined"];
 const REQ_MAX_PENCE = 100000000; // £1,000,000 sanity cap per requisition
@@ -877,9 +877,20 @@ async function reqCreate(request, env) {
   const kind       = clean(body.kind, 20) === "recurring" ? "recurring" : "one_off";
   let frequency    = null;
 
+  // Optional link to the item. Normalise a bare host to https:// and sanity-check
+  // it parses as an http(s) URL with a dotted host; blank is fine.
+  let item_url = clean(body.item_url, 500);
+
   const fields = {};
   if (!requestor) fields.requestor = "Please enter who is requesting this.";
   if (!item) fields.item = "Please enter the item.";
+  if (item_url) {
+    if (!/^https?:\/\//i.test(item_url)) item_url = "https://" + item_url;
+    try {
+      const u = new URL(item_url);
+      if ((u.protocol !== "http:" && u.protocol !== "https:") || !u.hostname.includes(".")) throw 0;
+    } catch { fields.item_url = "Please enter a valid web link, or leave it blank."; }
+  }
   if (!REQUISITION_CATEGORIES.includes(category)) fields.category = "Please choose what it's for.";
   if (cost_pence === null || cost_pence <= 0) fields.cost = "Please enter a valid cost in pounds.";
   else if (cost_pence > REQ_MAX_PENCE) fields.cost = "That cost looks too large.";
@@ -895,9 +906,9 @@ async function reqCreate(request, env) {
     const reference = "R" + makeReference(5);
     try {
       const res = await env.DB.prepare(
-        `INSERT INTO requisitions (reference, created_at, requestor, item, category, cost_pence, kind, frequency, approver, notes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
-      ).bind(reference, created_at, requestor, item, category, cost_pence, kind, frequency, approver, notes || null).run();
+        `INSERT INTO requisitions (reference, created_at, requestor, item, item_url, category, cost_pence, kind, frequency, approver, notes, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
+      ).bind(reference, created_at, requestor, item, item_url || null, category, cost_pence, kind, frequency, approver, notes || null).run();
 
       if (res.meta.changes === 1) {
         const row = await env.DB.prepare(`SELECT ${REQ_COLS} FROM requisitions WHERE id = ?`).bind(res.meta.last_row_id).first();
@@ -1006,12 +1017,12 @@ async function reqDelete(env, id) {
 
 async function reqExport(env) {
   const rows = (await env.DB.prepare(
-    `SELECT reference, created_at, requestor, item, category, cost_pence, kind, frequency, approver, status, decided_at, decided_by, notes
+    `SELECT reference, created_at, requestor, item, item_url, category, cost_pence, kind, frequency, approver, status, decided_at, decided_by, notes
      FROM requisitions ORDER BY created_at`
   ).all()).results;
 
   const out = [[
-    "Reference", "Submitted", "Requestor", "Item", "Category", "Type", "Frequency",
+    "Reference", "Submitted", "Requestor", "Item", "Link", "Category", "Type", "Frequency",
     "Amount (GBP)", "Annualised (GBP)", "Approver", "Status", "Decided", "Reviewed by", "Notes"
   ]];
   const STATUS_LABEL = { pending: "Pending", approved: "Approved", declined: "Declined" };
@@ -1019,7 +1030,7 @@ async function reqExport(env) {
     const recurring = r.kind === "recurring";
     const freq = recurring ? (FREQ_BY_VALUE.get(r.frequency)?.label || r.frequency || "") : "";
     out.push([
-      r.reference, formatLondon(r.created_at), r.requestor, r.item, r.category,
+      r.reference, formatLondon(r.created_at), r.requestor, r.item, r.item_url || "", r.category,
       recurring ? "Recurring" : "One-off", freq,
       formatPence(r.cost_pence),
       recurring ? formatPence(annualisePence(r.cost_pence, r.kind, r.frequency)) : "",

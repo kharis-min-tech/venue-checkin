@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS requisitions (
   created_at  TEXT    NOT NULL,                   -- ISO timestamp (UTC) submitted
   requestor   TEXT    NOT NULL,                   -- who is asking for it
   item        TEXT    NOT NULL,                   -- what is being bought
+  item_url    TEXT,                               -- optional link to the item (product page etc.)
   category    TEXT    NOT NULL,                   -- what it's for: Landscaping, Painting, …
   cost_pence  INTEGER NOT NULL,                   -- GBP as whole pence (per occurrence if recurring)
   kind        TEXT    NOT NULL DEFAULT 'one_off', -- 'one_off' | 'recurring'

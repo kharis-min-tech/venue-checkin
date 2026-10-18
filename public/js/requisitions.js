@@ -292,6 +292,7 @@ function reqRow(r) {
 
   const meta = [
     esc(r.category),
+    r.item_url ? `<a href="${esc(r.item_url)}" target="_blank" rel="noopener noreferrer">View item &#8599;</a>` : null,
     recurring && f ? "Recurring &middot; " + fmtMoney(r.cost_pence * f.perYear) + " / yr" : null,
     "Requested by " + esc(r.requestor),
     "Approver: " + esc(r.approver),
@@ -365,6 +366,7 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
   const payload = {
     requestor: document.getElementById("requestor").value.trim(),
     item: document.getElementById("item").value.trim(),
+    item_url: document.getElementById("item_url").value.trim(),
     category: document.getElementById("category").value,
     cost: document.getElementById("cost").value.trim(),
     kind: currentKind,
