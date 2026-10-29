@@ -8,6 +8,11 @@ let currentKind = "one_off";   // "one_off" | "recurring" (new-request form)
 let configLoaded = false;
 let isApprover = false;   // false = public (form only) | true = admin (form + log + review)
 
+// Reference the office arrived with from a notification email link
+// (/requisitions/?admin&ref=RK7F2Q). Captured at load, before the marker is
+// stripped from the address bar, and cleared once we've scrolled to that row.
+let flaggedRef = "";
+
 // Recurring frequencies: how to show them, and how many times a year they recur
 // (to annualise the amount). Must mirror REQUISITION_FREQUENCIES in config.js.
 const FREQ = {
@@ -28,6 +33,11 @@ function fmtMoney(pence) {
   const abs = Math.abs(n);
   const pounds = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${sign}£${pounds}.${String(abs % 100).padStart(2, "0")}`;
+}
+// cost_pence is the price of ONE unit, so the amount asked for is always
+// cost x quantity. Rows filed before quantity existed are a single unit.
+function totalPence(r) {
+  return (Number(r.cost_pence) || 0) * (Number(r.quantity) || 1);
 }
 function fmtWhen(iso) {
   if (!iso) return "";
@@ -75,6 +85,15 @@ function wantsAdmin() {
   try { return new URLSearchParams(location.search).has("admin"); } catch { return false; }
 }
 
+// The office's notification email links to ?admin&ref=RK7F2Q. Read the
+// reference before clearAdminUrl() wipes it, so the log can jump to that one.
+function readFlaggedRef() {
+  try {
+    const ref = new URLSearchParams(location.search).get("ref") || "";
+    return /^[A-Z0-9]{1,12}$/i.test(ref) ? ref.toUpperCase() : "";
+  } catch { return ""; }
+}
+
 // Strip the #admin / ?admin marker from the address bar so it doesn't linger
 // (e.g. a reload after cancelling would otherwise reopen the login).
 function clearAdminUrl() {
@@ -86,12 +105,13 @@ function clearAdminUrl() {
 }
 
 async function boot() {
+  flaggedRef = readFlaggedRef();
   try {
     const { authenticated } = await (await fetch("/api/req/session", { credentials: "same-origin" })).json();
     isApprover = !!authenticated;
   } catch { isApprover = false; }
   if (!isApprover && wantsAdmin()) showAdminLogin();
-  else showApp();
+  else { if (isApprover) clearAdminUrl(); showApp(); }
 }
 
 function showAdminLogin() {
@@ -216,8 +236,59 @@ function setKind(kind) {
   const recurring = currentKind === "recurring";
   document.getElementById("field-frequency").classList.toggle("hide", !recurring);
   const costLabel = document.getElementById("cost-label");
-  if (costLabel) costLabel.innerHTML = recurring ? "Amount each time (&pound;)" : "Cost (&pound;)";
+  if (costLabel) costLabel.innerHTML = recurring ? "Cost each, each time (&pound;)" : "Cost each (&pound;)";
+  renderFormTotal();
 }
+
+// ---------------- live total (quantity x cost each) ----------------
+// Mirrors poundsToPence in src/util.js: whole pence, at most 2 decimals, so
+// what the form shows is exactly what the server will store.
+function parsePoundsToPence(value) {
+  const s = String(value == null ? "" : value).trim().replace(/[£,\s]/g, "");
+  if (s === "" || !/^\d+(\.\d{1,2})?$/.test(s)) return null;
+  const pence = Math.round(parseFloat(s) * 100);
+  return Number.isFinite(pence) && pence >= 0 ? pence : null;
+}
+
+function parseQty(value) {
+  const s = String(value == null ? "" : value).trim().replace(/[,\s]/g, "");
+  if (!/^\d+$/.test(s)) return null;
+  const n = parseInt(s, 10);
+  return n >= 1 && n <= 100000 ? n : null;
+}
+
+// Shown only once both boxes hold something usable — an empty or half-typed
+// form shouldn't be shouting a total at anyone.
+function renderFormTotal() {
+  const el = document.getElementById("req-total");
+  if (!el) return;
+  const qty = parseQty(document.getElementById("quantity").value);
+  const each = parsePoundsToPence(document.getElementById("cost").value);
+
+  if (qty === null || each === null || each === 0) { el.classList.add("hide"); return; }
+
+  const f = FREQ[document.getElementById("frequency").value];
+  const recurring = currentKind === "recurring";
+  const sum = qty > 1 ? `${qty} &times; ${fmtMoney(each)}` : "Total";
+  const suffix = recurring && f ? ` <span class="req-per">${esc(f.suffix)}</span>` : "";
+
+  el.innerHTML = `<span class="req-total-sum">${sum}</span>
+    <strong>${fmtMoney(qty * each)}${suffix}</strong>`;
+  el.classList.remove("hide");
+}
+
+["quantity", "cost", "frequency"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) { el.addEventListener("input", renderFormTotal); el.addEventListener("change", renderFormTotal); }
+});
+
+// Clear the "please confirm" error the moment they tick it — leaving the red
+// banner up next to a ticked box just reads as broken.
+document.getElementById("value_checked").addEventListener("change", (e) => {
+  if (!e.target.checked) return;
+  document.getElementById("field-value_checked").classList.remove("invalid");
+  document.getElementById("req-alert").innerHTML = "";
+});
 
 // ---------------- status filter ----------------
 document.querySelectorAll("#status-filter button").forEach(b => {
@@ -283,17 +354,21 @@ function reqRow(r) {
 
   const recurring = r.kind === "recurring";
   const f = FREQ[r.frequency];
+  const qty = r.quantity || 1;
+  const total = totalPence(r);
   const cost = recurring && f
-    ? `${fmtMoney(r.cost_pence)} <span class="req-per">${esc(f.suffix)}</span>`
-    : fmtMoney(r.cost_pence);
+    ? `${fmtMoney(total)} <span class="req-per">${esc(f.suffix)}</span>`
+    : fmtMoney(total);
   const recurTag = recurring
     ? `<span class="badge badge--recurring">Recurring</span>`
     : "";
 
   const meta = [
+    // Only worth spelling the sum out when there's more than one of the item.
+    qty > 1 ? `${qty} &times; ${fmtMoney(r.cost_pence)}` : null,
     esc(r.category),
     r.item_url ? `<a href="${esc(r.item_url)}" target="_blank" rel="noopener noreferrer">View item &#8599;</a>` : null,
-    recurring && f ? "Recurring &middot; " + fmtMoney(r.cost_pence * f.perYear) + " / yr" : null,
+    recurring && f ? "Recurring &middot; " + fmtMoney(total * f.perYear) + " / yr" : null,
     "Requested by " + esc(r.requestor),
     "Approver: " + esc(r.approver),
     "Ref " + esc(r.reference),
@@ -301,10 +376,17 @@ function reqRow(r) {
     r.decided_at ? "Decided " + esc(fmtWhen(r.decided_at)) : null
   ].filter(Boolean).join(" &middot; ");
 
-  return `<div class="person">
+  // Requisitions filed before the confirmation existed have value_checked = 0;
+  // only call it out as missing on ones that should have it.
+  const valueNote = r.value_checked
+    ? `<div class="meta">&#10003; Requestor confirmed they considered other options and this is best value.</div>`
+    : "";
+
+  return `<div class="person" data-ref="${esc(r.reference)}">
     <div class="who">
       <div class="nm"><span class="req-cost">${cost}</span> ${esc(r.item)} ${STATUS_BADGE[r.status] || ""} ${recurTag}</div>
       <div class="meta">${meta}</div>
+      ${valueNote}
       ${r.notes ? `<div class="meta">Notes: ${esc(r.notes)}</div>` : ""}
     </div>
     <div class="acts">${acts}</div>
@@ -318,6 +400,20 @@ function renderList(rows) {
     return;
   }
   el.innerHTML = rows.map(reqRow).join("");
+  highlightFlagged();
+}
+
+// Arriving from the office notification email: pull that requisition into view
+// and ring it, so the reviewer doesn't have to hunt for it in the list. Only
+// once — after that the admin is just using the log normally.
+function highlightFlagged() {
+  if (!flaggedRef) return;
+  const row = document.querySelector(`#req-list .person[data-ref="${CSS.escape(flaggedRef)}"]`);
+  const ref = flaggedRef;
+  flaggedRef = "";
+  if (!row) { toast(`Requisition ${ref} was not found — it may have been deleted.`, true); return; }
+  row.classList.add("person--flagged");
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // ---------------- actions (event delegation) ----------------
@@ -349,6 +445,8 @@ document.body.addEventListener("click", async (e) => {
 // ---------------- new requisition ----------------
 function resetReqForm() {
   document.getElementById("req-form").reset();
+  document.getElementById("quantity").value = "1";   // form.reset() restores the markup default anyway; explicit so it can't drift
+  document.getElementById("value_checked").checked = false;
   document.querySelectorAll("#kind-toggle button").forEach(x => x.classList.toggle("active", x.dataset.kind === "one_off"));
   setKind("one_off");
   const cat = document.getElementById("category");
@@ -368,12 +466,22 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
     item: document.getElementById("item").value.trim(),
     item_url: document.getElementById("item_url").value.trim(),
     category: document.getElementById("category").value,
+    quantity: document.getElementById("quantity").value.trim(),
     cost: document.getElementById("cost").value.trim(),
+    value_checked: document.getElementById("value_checked").checked,
     kind: currentKind,
     frequency: document.getElementById("frequency").value,
     approver: document.getElementById("approver").value.trim(),
     notes: document.getElementById("notes").value.trim()
   };
+
+  // Caught here as well as on the server, so ticking the box is an obvious
+  // step rather than a rejection after you've pressed submit.
+  if (!payload.value_checked) {
+    document.getElementById("field-value_checked").classList.add("invalid");
+    alertEl.innerHTML = `<div class="alert alert--error">Please confirm you've considered other options and this is the best value.</div>`;
+    return;
+  }
 
   const btn = document.getElementById("req-submit");
   btn.disabled = true; btn.textContent = "Submitting…";

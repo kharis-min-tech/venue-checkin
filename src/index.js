@@ -4,6 +4,7 @@ import {
   makeReference, createSession, verifySession, getCookie, timingSafeEqual, toCSV,
   hmToMin, slotKey, slotLabel, labelFromKey, poundsToPence, formatPence
 } from "./util.js";
+import { notifyNewRequisition } from "./req-notify.js";
 
 // ---- Late / no-show helpers ----
 const slotStartMin = (slotKeyStr) => hmToMin(String(slotKeyStr).split("-")[0]);
@@ -73,7 +74,7 @@ async function getScheduleForDate(env, date) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const { pathname } = url;
     const method = request.method;
@@ -112,7 +113,7 @@ export default {
 
       // --- Requisitions: public request form (no login — anyone can file one) ---
       if (pathname === "/api/req/config" && method === "GET") return reqConfig();
-      if (pathname === "/api/req/create" && method === "POST") return reqCreate(request, env);
+      if (pathname === "/api/req/create" && method === "POST") return reqCreate(request, env, ctx, url.origin);
 
       // --- Requisitions admin auth (its own passcode + cookie, separate gate) ---
       if (pathname === "/api/req/login" && method === "POST") return handleReqLogin(request, env, url);
@@ -848,10 +849,27 @@ function handleReqAdminRoutes(request, env, url, pathname, method) {
 }
 
 const REQ_COLS =
-  "id, reference, created_at, requestor, item, item_url, category, cost_pence, kind, frequency, approver, notes, status, decided_at, decided_by";
+  "id, reference, created_at, requestor, item, item_url, category, quantity, cost_pence, value_checked, kind, frequency, approver, notes, status, decided_at, decided_by";
 
 const REQ_STATUSES = ["pending", "approved", "declined"];
-const REQ_MAX_PENCE = 100000000; // £1,000,000 sanity cap per requisition
+const REQ_MAX_PENCE = 100000000; // £1,000,000 sanity cap per requisition (total)
+const REQ_MAX_QUANTITY = 100000;
+
+// `cost_pence` is the price of ONE unit, so the amount being asked for is
+// always cost_pence * quantity. Older rows (filed before quantity existed)
+// have no quantity, and are a single unit.
+const reqTotalPence = (r) => r.cost_pence * (r.quantity || 1);
+
+// A quantity must be a whole number of items, at least 1. Returns null for
+// anything else (blank, 0, 2.5, "abc") so the caller can report a field error.
+function parseQuantity(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const s = String(value).trim().replace(/[,\s]/g, "");
+  if (!/^\d+$/.test(s)) return null;
+  const n = parseInt(s, 10);
+  if (!Number.isFinite(n) || n < 1 || n > REQ_MAX_QUANTITY) return null;
+  return n;
+}
 
 // Frequency lookup: value -> { value, label, perYear }. Used to validate a
 // recurring frequency and to annualise recurring amounts for the totals / CSV.
@@ -864,7 +882,7 @@ function reqConfig() {
   });
 }
 
-async function reqCreate(request, env) {
+async function reqCreate(request, env, ctx, origin) {
   let body;
   try { body = await request.json(); } catch { return json({ error: "Invalid request" }, 400); }
 
@@ -874,7 +892,11 @@ async function reqCreate(request, env) {
   const approver   = clean(body.approver, 100);
   const notes      = clean(body.notes, 1000);
   const cost_pence = poundsToPence(body.cost);
+  const quantity   = parseQuantity(body.quantity);
   const kind       = clean(body.kind, 20) === "recurring" ? "recurring" : "one_off";
+  // The requestor must tick this to submit — the form blocks it too, but a
+  // request reaching the API without it is not one the office should receive.
+  const value_checked = body.value_checked === true || body.value_checked === 1 ? 1 : 0;
   let frequency    = null;
 
   // Optional link to the item. Normalise a bare host to https:// and sanity-check
@@ -892,8 +914,15 @@ async function reqCreate(request, env) {
     } catch { fields.item_url = "Please enter a valid web link, or leave it blank."; }
   }
   if (!REQUISITION_CATEGORIES.includes(category)) fields.category = "Please choose what it's for.";
+  if (quantity === null) fields.quantity = `Please enter a whole number from 1 to ${REQ_MAX_QUANTITY}.`;
   if (cost_pence === null || cost_pence <= 0) fields.cost = "Please enter a valid cost in pounds.";
   else if (cost_pence > REQ_MAX_PENCE) fields.cost = "That cost looks too large.";
+  // Cap the TOTAL too, so a small unit price times a huge quantity can't slip
+  // past the per-unit cap.
+  else if (quantity !== null && cost_pence * quantity > REQ_MAX_PENCE) {
+    fields.cost = "That total looks too large. Please check the quantity and cost.";
+  }
+  if (!value_checked) fields.value_checked = "Please confirm this is the best value you could find.";
   if (kind === "recurring") {
     frequency = clean(body.frequency, 20);
     if (!FREQ_BY_VALUE.has(frequency)) fields.frequency = "Please choose how often this recurs.";
@@ -906,12 +935,15 @@ async function reqCreate(request, env) {
     const reference = "R" + makeReference(5);
     try {
       const res = await env.DB.prepare(
-        `INSERT INTO requisitions (reference, created_at, requestor, item, item_url, category, cost_pence, kind, frequency, approver, notes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
-      ).bind(reference, created_at, requestor, item, item_url || null, category, cost_pence, kind, frequency, approver, notes || null).run();
+        `INSERT INTO requisitions (reference, created_at, requestor, item, item_url, category, quantity, cost_pence, value_checked, kind, frequency, approver, notes, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
+      ).bind(reference, created_at, requestor, item, item_url || null, category, quantity, cost_pence, value_checked, kind, frequency, approver, notes || null).run();
 
       if (res.meta.changes === 1) {
         const row = await env.DB.prepare(`SELECT ${REQ_COLS} FROM requisitions WHERE id = ?`).bind(res.meta.last_row_id).first();
+        // Tell the office, after the response has gone back. The requisition is
+        // already saved, so SES being down must not fail the submission.
+        if (ctx) ctx.waitUntil(notifyNewRequisition(env, row, origin));
         return json({ ok: true, requisition: row });
       }
     } catch (e) {
@@ -940,7 +972,8 @@ async function reqList(env, url) {
   // Totals are computed across ALL requisitions (never the filter), so the
   // headline "how much have we spent" figures stay stable as you filter.
   const totalsRows = (await env.DB.prepare(
-    `SELECT status, category, kind, frequency, COUNT(*) AS n, COALESCE(SUM(cost_pence), 0) AS pence
+    `SELECT status, category, kind, frequency, COUNT(*) AS n,
+            COALESCE(SUM(cost_pence * quantity), 0) AS pence
      FROM requisitions GROUP BY status, category, kind, frequency`
   ).all()).results;
 
@@ -1017,23 +1050,26 @@ async function reqDelete(env, id) {
 
 async function reqExport(env) {
   const rows = (await env.DB.prepare(
-    `SELECT reference, created_at, requestor, item, item_url, category, cost_pence, kind, frequency, approver, status, decided_at, decided_by, notes
+    `SELECT reference, created_at, requestor, item, item_url, category, quantity, cost_pence, value_checked, kind, frequency, approver, status, decided_at, decided_by, notes
      FROM requisitions ORDER BY created_at`
   ).all()).results;
 
   const out = [[
     "Reference", "Submitted", "Requestor", "Item", "Link", "Category", "Type", "Frequency",
-    "Amount (GBP)", "Annualised (GBP)", "Approver", "Status", "Decided", "Reviewed by", "Notes"
+    "Quantity", "Unit cost (GBP)", "Amount (GBP)", "Annualised (GBP)", "Best value confirmed",
+    "Approver", "Status", "Decided", "Reviewed by", "Notes"
   ]];
   const STATUS_LABEL = { pending: "Pending", approved: "Approved", declined: "Declined" };
   for (const r of rows) {
     const recurring = r.kind === "recurring";
     const freq = recurring ? (FREQ_BY_VALUE.get(r.frequency)?.label || r.frequency || "") : "";
+    const total = reqTotalPence(r);
     out.push([
       r.reference, formatLondon(r.created_at), r.requestor, r.item, r.item_url || "", r.category,
       recurring ? "Recurring" : "One-off", freq,
-      formatPence(r.cost_pence),
-      recurring ? formatPence(annualisePence(r.cost_pence, r.kind, r.frequency)) : "",
+      r.quantity || 1, formatPence(r.cost_pence), formatPence(total),
+      recurring ? formatPence(annualisePence(total, r.kind, r.frequency)) : "",
+      r.value_checked ? "Yes" : "No",
       r.approver, STATUS_LABEL[r.status] || r.status,
       formatLondon(r.decided_at), r.decided_by || "", r.notes || ""
     ]);

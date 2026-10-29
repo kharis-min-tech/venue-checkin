@@ -51,6 +51,8 @@ CREATE INDEX IF NOT EXISTS idx_visitors_onsite ON visitors (checked_in_at, check
 -- approve/decline review sit behind an admin passcode, separate from the staff
 -- portal. A requisition is either a one-off cost or a recurring commitment
 -- (with a frequency); recurring amounts are the cost per occurrence.
+-- `cost_pence` is the price of ONE unit, so the amount actually being asked
+-- for is always cost_pence * quantity — anything that sums money must multiply.
 CREATE TABLE IF NOT EXISTS requisitions (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   reference   TEXT    NOT NULL UNIQUE,            -- short code, e.g. RK7F2Q
@@ -59,7 +61,9 @@ CREATE TABLE IF NOT EXISTS requisitions (
   item        TEXT    NOT NULL,                   -- what is being bought
   item_url    TEXT,                               -- optional link to the item (product page etc.)
   category    TEXT    NOT NULL,                   -- what it's for: Landscaping, Painting, …
-  cost_pence  INTEGER NOT NULL,                   -- GBP as whole pence (per occurrence if recurring)
+  quantity    INTEGER NOT NULL DEFAULT 1,         -- how many of the item are being asked for
+  cost_pence  INTEGER NOT NULL,                   -- GBP whole pence, PER UNIT (per occurrence if recurring)
+  value_checked INTEGER NOT NULL DEFAULT 0,       -- 1 = requestor confirmed they compared alternatives
   kind        TEXT    NOT NULL DEFAULT 'one_off', -- 'one_off' | 'recurring'
   frequency   TEXT,                               -- recurring only: weekly|monthly|quarterly|yearly
   approver    TEXT    NOT NULL,                   -- person who signs it off

@@ -10,6 +10,17 @@
   "observability": {
     "enabled": true
   },
+
+  // Non-secret settings. The AWS keys that go with these are secrets — set them
+  // with `npx wrangler secret put AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+  // and never put them in this file. See the README.
+  "vars": {
+    // Where new requisitions are emailed. Change it here and redeploy.
+    "REQUISITION_NOTIFY_EMAIL": "Office@kharis.org",
+    // Must be an identity verified in SES, in AWS_REGION.
+    "EMAIL_FROM": "\"Kharis Church\" <noreply@kharis.org>",
+    "AWS_REGION": "eu-west-2"
+  },
   "triggers": {
     // Every minute: auto-cancel bookings not checked in 15 min after their slot start.
     "crons": ["* * * * *"]

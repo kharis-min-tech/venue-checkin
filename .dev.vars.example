@@ -16,3 +16,26 @@ REQUISITIONS_APPROVER_PASSCODE="change-me-requisitions-admin"
 # Optional/legacy: used as a fallback admin passcode only if the APPROVER one
 # above is not set. Safe to leave unset.
 # REQUISITIONS_PASSCODE="change-me"
+
+# --- Email (AWS SES) -------------------------------------------------------
+# Used to email the office whenever a requisition is submitted. Sent from the
+# SES-verified noreply@kharis.org identity — the same setup the kairos app uses,
+# so the same IAM keys work here.
+#
+# Leave these BLANK locally and nothing is sent: the Worker logs the email to
+# the console instead and the form still works end to end. In production set
+# them as secrets:
+#   npx wrangler secret put AWS_ACCESS_KEY_ID
+#   npx wrangler secret put AWS_SECRET_ACCESS_KEY
+AWS_ACCESS_KEY_ID=""
+AWS_SECRET_ACCESS_KEY=""
+
+# Non-secret email settings. These are also set in wrangler.jsonc "vars" for
+# production; the copies here only apply to `wrangler dev`.
+AWS_REGION="eu-west-2"
+EMAIL_FROM="\"Kharis Church\" <noreply@kharis.org>"
+REQUISITION_NOTIFY_EMAIL="Office@kharis.org"
+
+# Optional: an SES configuration set, so bounces/complaints are tracked
+# separately for this app. Leave unset to use the identity's default.
+# SES_CONFIGURATION_SET=""

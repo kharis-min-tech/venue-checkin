@@ -126,18 +126,27 @@
           </div>
         </div>
 
+        <div class="field" id="field-category">
+          <label for="category">What it's for</label>
+          <select id="category"><option value="">Select&hellip;</option></select>
+          <div class="field-error">Please choose what it's for.</div>
+        </div>
+
         <div class="row2">
-          <div class="field" id="field-category">
-            <label for="category">What it's for</label>
-            <select id="category"><option value="">Select&hellip;</option></select>
-            <div class="field-error">Please choose what it's for.</div>
+          <div class="field" id="field-quantity">
+            <label for="quantity">Quantity</label>
+            <input type="text" id="quantity" inputmode="numeric" value="1" />
+            <div class="field-error">Please enter a whole number from 1 to 100000.</div>
           </div>
           <div class="field" id="field-cost">
-            <label for="cost" id="cost-label">Cost (&pound;)</label>
+            <label for="cost" id="cost-label">Cost each (&pound;)</label>
             <input type="text" id="cost" inputmode="decimal" placeholder="e.g. 149.99" />
             <div class="field-error">Please enter a valid cost in pounds.</div>
           </div>
         </div>
+
+        <!-- Live quantity x cost, so nobody has to do the sum in their head. -->
+        <div class="req-total hide" id="req-total" aria-live="polite"></div>
 
         <div class="field hide" id="field-frequency">
           <label for="frequency">How often</label>
@@ -154,6 +163,15 @@
         <div class="field" id="field-notes">
           <label for="notes">Notes <span class="opt">(optional)</span></label>
           <textarea id="notes" placeholder="Anything useful: supplier, quote reference, why it's needed."></textarea>
+        </div>
+
+        <div class="field" id="field-value_checked">
+          <label class="ack-row">
+            <input type="checkbox" id="value_checked" />
+            <span>I have considered other options and suppliers, and I believe this is the
+              best value we can get for what is needed.</span>
+          </label>
+          <div class="field-error">Please confirm this is the best value you could find.</div>
         </div>
 
         <div id="req-alert" class="mt"></div>

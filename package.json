@@ -8,9 +8,14 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:init:local": "wrangler d1 execute venue-checkin-db --local --file=./schema.sql",
-    "db:init:remote": "wrangler d1 execute venue-checkin-db --remote --file=./schema.sql"
+    "db:init:remote": "wrangler d1 execute venue-checkin-db --remote --file=./schema.sql",
+    "db:migrate:local": "wrangler d1 execute venue-checkin-db --local --file=./migrations/001_requisition_quantity_and_value_check.sql",
+    "db:migrate:remote": "wrangler d1 execute venue-checkin-db --remote --file=./migrations/001_requisition_quantity_and_value_check.sql"
   },
   "devDependencies": {
     "wrangler": "^4.40.0"
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.20"
   }
 }
