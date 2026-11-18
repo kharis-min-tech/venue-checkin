@@ -93,13 +93,15 @@ Share `/` with members and `/staff/` with your security/admin team.
 run once against each database that already exists:
 
 ```bash
-npm run db:migrate:local    # your local dev database
-npm run db:migrate:remote   # the live database
+npm run db:migrate:total-cost:local    # your local dev database
+npm run db:migrate:total-cost:remote   # the live database
 npm run deploy
 ```
 
 `migrations/001_requisition_quantity_and_value_check.sql` adds the requisition
-`quantity` and `value_checked` columns. Running a migration twice fails with
+`quantity` and `value_checked` columns. On older databases missing those
+columns, run `npm run db:migrate:local` or `npm run db:migrate:remote` first.
+Running a migration twice fails with
 `duplicate column name` — that just means it has already been applied.
 
 ---
@@ -143,10 +145,9 @@ npx wrangler d1 export venue-checkin-db --remote --output backup.sql
 - The staff area is protected by a single shared passcode; a signed, HTTP-only
   session cookie keeps staff logged in for 12 hours.
 - All times are handled in UK local time (`Europe/London`).
-- A requisition's `cost_pence` is the price of **one unit** — the amount being
-  asked for is always `cost_pence * quantity`, so anything that sums money has
-  to multiply. Rows predating the quantity column have `quantity = 1`, which
-  leaves their historic totals unchanged.
+- The optional `total_cost_pence` is used for spend reporting when supplied.
+  Otherwise the amount is `cost_pence * quantity`. Recurring amounts are per
+  occurrence. Admins can edit or clear the total from the spend log.
 - The office notification is sent from `ctx.waitUntil` after the response: the
   requisition is already saved, so SES being down can never turn a successful
   submission into an error for the person filling in the form.

@@ -1,5 +1,5 @@
 import { REQUISITION_FREQUENCIES } from "./config.js";
-import { formatLondon, formatPence } from "./util.js";
+import { formatLondon, formatPence, reqTotalPence } from "./util.js";
 import { sendEmail } from "./mailer.js";
 
 // Emails the office whenever someone files a requisition, so a request never
@@ -40,13 +40,15 @@ function row(label, value) {
 export function renderNewRequisitionEmail(r, link) {
   const quantity = r.quantity || 1;
   const unit = `£${formatPence(r.cost_pence)}`;
-  const total = `£${formatPence(r.cost_pence * quantity)}`;
+  const totalPence = reqTotalPence(r);
+  const total = `£${formatPence(totalPence)}`;
+  const showBreakdown = r.total_cost_pence == null && quantity > 1;
   const recurring = r.kind === "recurring";
   const freqLabel = recurring ? (FREQ_LABEL.get(r.frequency) || r.frequency || "") : "";
   const perYear = recurring ? (PER_YEAR.get(r.frequency) || 0) : 0;
 
   // One unit: showing "1 × £49.99" adds nothing over "£49.99".
-  const amountLine = quantity > 1
+  const amountLine = showBreakdown
     ? `<strong style="font-size:20px;">${total}</strong>
        <span style="color:#6b6b70;font-size:13px;">&nbsp;(${quantity} &times; ${unit})</span>`
     : `<strong style="font-size:20px;">${total}</strong>`;
@@ -55,7 +57,7 @@ export function renderNewRequisitionEmail(r, link) {
     row("Item", esc(r.item)),
     row("Quantity", String(quantity)),
     row(recurring ? "Amount each time" : "Amount", amountLine),
-    recurring ? row("Recurring", `${esc(freqLabel)}${perYear ? ` &middot; £${formatPence(r.cost_pence * quantity * perYear)} / year` : ""}`) : "",
+    recurring ? row("Recurring", `${esc(freqLabel)}${perYear ? ` &middot; £${formatPence(totalPence * perYear)} / year` : ""}`) : "",
     row("What it's for", esc(r.category)),
     row("Requested by", esc(r.requestor)),
     row("Approver", esc(r.approver)),
@@ -113,8 +115,8 @@ export function renderNewRequisitionEmail(r, link) {
     line("Item", r.item),
     line("Quantity", quantity),
     line(recurring ? "Amount each time" : "Amount",
-      `${total}${quantity > 1 ? ` (${quantity} x ${unit})` : ""}`),
-    recurring ? line("Recurring", `${freqLabel}${perYear ? ` — £${formatPence(r.cost_pence * quantity * perYear)} / year` : ""}`) : null,
+      `${total}${showBreakdown ? ` (${quantity} x ${unit})` : ""}`),
+    recurring ? line("Recurring", `${freqLabel}${perYear ? ` — £${formatPence(totalPence * perYear)} / year` : ""}`) : null,
     line("What it's for", r.category),
     line("Requested by", r.requestor),
     line("Approver", r.approver),

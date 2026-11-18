@@ -34,10 +34,8 @@ function fmtMoney(pence) {
   const pounds = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${sign}£${pounds}.${String(abs % 100).padStart(2, "0")}`;
 }
-// cost_pence is the price of ONE unit, so the amount asked for is always
-// cost x quantity. Rows filed before quantity existed are a single unit.
 function totalPence(r) {
-  return (Number(r.cost_pence) || 0) * (Number(r.quantity) || 1);
+  return r.total_cost_pence ?? r.cost_pence * (r.quantity || 1);
 }
 function fmtWhen(iso) {
   if (!iso) return "";
@@ -154,6 +152,7 @@ async function loadConfigOnce() {
   if (configLoaded) return;
   const cat = document.getElementById("category");
   const freq = document.getElementById("frequency");
+  const approver = document.getElementById("approver");
   try {
     const cfg = await (await fetch("/api/req/config", { credentials: "same-origin" })).json();
     for (const c of (cfg.categories || [])) {
@@ -164,10 +163,14 @@ async function loadConfigOnce() {
       const o = document.createElement("option");
       o.value = f.value; o.textContent = f.label; freq.appendChild(o);
     }
+    for (const name of (cfg.approvers || [])) {
+      approver.add(new Option(name, name));
+    }
   } catch { return; }
   configLoaded = true;
   if (cat) KUI.enhanceSelect(cat);
   if (freq) KUI.enhanceSelect(freq);
+  KUI.enhanceSelect(approver);
 }
 
 document.getElementById("login-cancel").addEventListener("click", (e) => {
@@ -237,6 +240,7 @@ function setKind(kind) {
   document.getElementById("field-frequency").classList.toggle("hide", !recurring);
   const costLabel = document.getElementById("cost-label");
   if (costLabel) costLabel.innerHTML = recurring ? "Cost each, each time (&pound;)" : "Cost each (&pound;)";
+  document.getElementById("total-cost-label").textContent = recurring ? "Total cost each time (£)" : "Total cost (£)";
   renderFormTotal();
 }
 
@@ -264,20 +268,22 @@ function renderFormTotal() {
   if (!el) return;
   const qty = parseQty(document.getElementById("quantity").value);
   const each = parsePoundsToPence(document.getElementById("cost").value);
+  const entered = document.getElementById("total_cost").value.trim();
+  const total = entered ? parsePoundsToPence(entered) : (qty === null || !each ? null : qty * each);
 
-  if (qty === null || each === null || each === 0) { el.classList.add("hide"); return; }
+  if (total === null) { el.classList.add("hide"); return; }
 
   const f = FREQ[document.getElementById("frequency").value];
   const recurring = currentKind === "recurring";
-  const sum = qty > 1 ? `${qty} &times; ${fmtMoney(each)}` : "Total";
+  const sum = !entered && qty > 1 ? `${qty} &times; ${fmtMoney(each)}` : "Total";
   const suffix = recurring && f ? ` <span class="req-per">${esc(f.suffix)}</span>` : "";
 
   el.innerHTML = `<span class="req-total-sum">${sum}</span>
-    <strong>${fmtMoney(qty * each)}${suffix}</strong>`;
+    <strong>${fmtMoney(total)}${suffix}</strong>`;
   el.classList.remove("hide");
 }
 
-["quantity", "cost", "frequency"].forEach(id => {
+["quantity", "cost", "total_cost", "frequency"].forEach(id => {
   const el = document.getElementById(id);
   if (el) { el.addEventListener("input", renderFormTotal); el.addEventListener("change", renderFormTotal); }
 });
@@ -365,7 +371,7 @@ function reqRow(r) {
 
   const meta = [
     // Only worth spelling the sum out when there's more than one of the item.
-    qty > 1 ? `${qty} &times; ${fmtMoney(r.cost_pence)}` : null,
+    r.total_cost_pence == null && qty > 1 ? `${qty} &times; ${fmtMoney(r.cost_pence)}` : null,
     esc(r.category),
     r.item_url ? `<a href="${esc(r.item_url)}" target="_blank" rel="noopener noreferrer">View item &#8599;</a>` : null,
     recurring && f ? "Recurring &middot; " + fmtMoney(total * f.perYear) + " / yr" : null,
@@ -388,6 +394,18 @@ function reqRow(r) {
       <div class="meta">${meta}</div>
       ${valueNote}
       ${r.notes ? `<div class="meta">Notes: ${esc(r.notes)}</div>` : ""}
+      <details class="req-cost-editor">
+        <summary class="btn btn--ghost btn--sm">Edit total cost</summary>
+        <form data-cost-id="${r.id}">
+          <div class="field">
+            <label for="edit-cost-${r.id}">${recurring ? "Total cost each time" : "Total cost"} (&pound;)</label>
+            <input type="text" id="edit-cost-${r.id}" name="total_cost" inputmode="decimal"
+              aria-describedby="edit-cost-hint-${r.id}" value="${r.total_cost_pence == null ? "" : (r.total_cost_pence / 100).toFixed(2)}" />
+            <div class="hint" id="edit-cost-hint-${r.id}">Leave blank to use ${fmtMoney(r.cost_pence * qty)} from quantity and unit cost.</div>
+          </div>
+          <button type="submit" class="btn btn--sm">Save total cost</button>
+        </form>
+      </details>
     </div>
     <div class="acts">${acts}</div>
   </div>`;
@@ -417,6 +435,30 @@ function highlightFlagged() {
 }
 
 // ---------------- actions (event delegation) ----------------
+document.getElementById("req-list").addEventListener("submit", async (e) => {
+  const form = e.target;
+  const id = form.dataset.costId;
+  if (!id) return;
+  e.preventDefault();
+  const btn = form.querySelector("button");
+  btn.disabled = true;
+  try {
+    const { res, data } = await apiJSON(`/api/req/${id}/cost`, "PATCH", {
+      total_cost: form.elements.total_cost.value.trim()
+    });
+    if (!res.ok) {
+      toast(data.error || "Could not save the total cost.", true);
+      return;
+    }
+    toast("Total cost saved");
+    await loadReq();
+  } catch (err) {
+    if (err.message !== "unauthorised") toast("Could not save the total cost.", true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 document.body.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-act]");
   if (!btn) return;
@@ -453,6 +495,7 @@ function resetReqForm() {
   const freq = document.getElementById("frequency");
   if (cat && cat._kw) cat._kw.render();
   if (freq && freq._kw) freq._kw.render();
+  document.getElementById("approver")._kw?.render();
 }
 
 document.getElementById("req-form").addEventListener("submit", async (e) => {
@@ -468,6 +511,7 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
     category: document.getElementById("category").value,
     quantity: document.getElementById("quantity").value.trim(),
     cost: document.getElementById("cost").value.trim(),
+    total_cost: document.getElementById("total_cost").value.trim(),
     value_checked: document.getElementById("value_checked").checked,
     kind: currentKind,
     frequency: document.getElementById("frequency").value,

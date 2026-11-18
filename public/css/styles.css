@@ -106,7 +106,7 @@ a { color: var(--primary); }
 label { display: block; font-weight: 600; font-size: .85rem; margin: 15px 0 6px; color: var(--ink); }
 label .opt { font-weight: 400; color: var(--ink-soft); }
 
-input[type="text"], input[type="tel"], input[type="email"], input[type="date"],
+input[type="text"], input[type="tel"], input[type="email"], input[type="url"], input[type="date"],
 input[type="password"], input[type="search"], input[type="time"], input[type="number"], select, textarea {
   width: 100%;
   padding: 11px 13px;
@@ -558,6 +558,9 @@ table.data tbody tr:hover td { background: var(--secondary); }
 /* Requisition rows reuse .person; make the cost stand out */
 .req-cost { font-variant-numeric: tabular-nums; font-weight: 800; margin-right: 4px; }
 .req-per { font-size: .82rem; font-weight: 600; color: var(--ink-soft); }
+.req-cost-editor { margin-top: 8px; }
+.req-cost-editor summary { cursor: pointer; width: fit-content; }
+.req-cost-editor form { max-width: 260px; margin-top: 8px; }
 
 /* Status badges */
 .badge--pending   { background: var(--accent-tint); color: var(--accent-700); }

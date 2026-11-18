@@ -218,6 +218,10 @@ export function toCSV(rows) {
 // ---------- Money (GBP) ----------
 // Store money as whole pence (integers) so sums never drift the way floats do.
 
+export function reqTotalPence(row) {
+  return row.total_cost_pence ?? row.cost_pence * (row.quantity || 1);
+}
+
 // Parse a user-entered amount ("1,234.50", "£99", 42) to integer pence.
 // Returns null if it isn't a valid non-negative amount with at most 2 decimals.
 export function poundsToPence(value) {

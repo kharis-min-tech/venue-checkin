@@ -114,7 +114,7 @@
 
         <div class="field" id="field-item_url">
           <label for="item_url">Link to item <span class="opt">(optional)</span></label>
-          <input type="url" id="item_url" inputmode="url" placeholder="https://… product page, if there is one" />
+          <input type="url" id="item_url" autocomplete="url" placeholder="https://example.com/product" />
           <div class="field-error">Please enter a valid web link, or leave it blank.</div>
         </div>
 
@@ -145,7 +145,13 @@
           </div>
         </div>
 
-        <!-- Live quantity x cost, so nobody has to do the sum in their head. -->
+        <div class="field" id="field-total_cost">
+          <label for="total_cost"><span id="total-cost-label">Total cost (&pound;)</span> <span class="opt">(if known)</span></label>
+          <input type="text" id="total_cost" inputmode="decimal" aria-describedby="total-cost-hint" />
+          <div class="hint" id="total-cost-hint">Leave blank to use quantity times cost each.</div>
+          <div class="field-error">Enter a valid total cost up to &pound;1,000,000, or leave it blank.</div>
+        </div>
+
         <div class="req-total hide" id="req-total" aria-live="polite"></div>
 
         <div class="field hide" id="field-frequency">
@@ -155,9 +161,9 @@
         </div>
 
         <div class="field" id="field-approver">
-          <label for="approver">Approver</label>
-          <input type="text" id="approver" placeholder="Who signs this off" />
-          <div class="field-error">Please enter who approves this.</div>
+          <label for="approver">Who approves this?</label>
+          <select id="approver"><option value="">Select&hellip;</option></select>
+          <div class="field-error">Please choose who approves this.</div>
         </div>
 
         <div class="field" id="field-notes">

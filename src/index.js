@@ -2,7 +2,7 @@ import { BRANCHES, DEFAULT_SLOTS, DEFAULT_CAPACITY, GRACE_MINUTES, REQUISITION_C
 import {
   json, clean, isValidDate, londonDate, londonMinutesOfDay, formatLondon, nowISO,
   makeReference, createSession, verifySession, getCookie, timingSafeEqual, toCSV,
-  hmToMin, slotKey, slotLabel, labelFromKey, poundsToPence, formatPence
+  hmToMin, slotKey, slotLabel, labelFromKey, poundsToPence, formatPence, reqTotalPence
 } from "./util.js";
 import { notifyNewRequisition } from "./req-notify.js";
 
@@ -841,6 +841,9 @@ function handleReqAdminRoutes(request, env, url, pathname, method) {
   if ((m = pathname.match(/^\/api\/req\/(\d+)\/decision$/)) && method === "POST") {
     return reqDecision(request, env, parseInt(m[1], 10));
   }
+  if ((m = pathname.match(/^\/api\/req\/(\d+)\/cost$/)) && method === "PATCH") {
+    return reqUpdateCost(request, env, parseInt(m[1], 10));
+  }
   if ((m = pathname.match(/^\/api\/req\/(\d+)$/)) && method === "DELETE") {
     return reqDelete(env, parseInt(m[1], 10));
   }
@@ -849,16 +852,25 @@ function handleReqAdminRoutes(request, env, url, pathname, method) {
 }
 
 const REQ_COLS =
-  "id, reference, created_at, requestor, item, item_url, category, quantity, cost_pence, value_checked, kind, frequency, approver, notes, status, decided_at, decided_by";
+  "id, reference, created_at, requestor, item, item_url, category, quantity, cost_pence, total_cost_pence, value_checked, kind, frequency, approver, notes, status, decided_at, decided_by";
 
 const REQ_STATUSES = ["pending", "approved", "declined"];
 const REQ_MAX_PENCE = 100000000; // £1,000,000 sanity cap per requisition (total)
 const REQ_MAX_QUANTITY = 100000;
 
-// `cost_pence` is the price of ONE unit, so the amount being asked for is
-// always cost_pence * quantity. Older rows (filed before quantity existed)
-// have no quantity, and are a single unit.
-const reqTotalPence = (r) => r.cost_pence * (r.quantity || 1);
+const REQ_APPROVERS = ["Trustees", "Pastoral Leadership", "Church Administrator"];
+
+function parseTotalCost(value) {
+  if (value === null || value === "") return { pence: null };
+  if (typeof value !== "string" && typeof value !== "number") {
+    return { error: "Please enter a valid total cost in pounds." };
+  }
+  if (String(value).trim() === "") return { pence: null };
+  const pence = poundsToPence(value);
+  if (pence === null) return { error: "Please enter a valid total cost in pounds." };
+  if (pence > REQ_MAX_PENCE) return { error: "The total cost must be £1,000,000 or less." };
+  return { pence };
+}
 
 // A quantity must be a whole number of items, at least 1. Returns null for
 // anything else (blank, 0, 2.5, "abc") so the caller can report a field error.
@@ -878,6 +890,7 @@ const FREQ_BY_VALUE = new Map(REQUISITION_FREQUENCIES.map(f => [f.value, f]));
 function reqConfig() {
   return json({
     categories: REQUISITION_CATEGORIES,
+    approvers: REQ_APPROVERS,
     frequencies: REQUISITION_FREQUENCIES.map(f => ({ value: f.value, label: f.label }))
   });
 }
@@ -892,6 +905,7 @@ async function reqCreate(request, env, ctx, origin) {
   const approver   = clean(body.approver, 100);
   const notes      = clean(body.notes, 1000);
   const cost_pence = poundsToPence(body.cost);
+  const totalCost  = parseTotalCost(body.total_cost ?? null);
   const quantity   = parseQuantity(body.quantity);
   const kind       = clean(body.kind, 20) === "recurring" ? "recurring" : "one_off";
   // The requestor must tick this to submit — the form blocks it too, but a
@@ -927,7 +941,8 @@ async function reqCreate(request, env, ctx, origin) {
     frequency = clean(body.frequency, 20);
     if (!FREQ_BY_VALUE.has(frequency)) fields.frequency = "Please choose how often this recurs.";
   }
-  if (!approver) fields.approver = "Please enter who approves this.";
+  if (!REQ_APPROVERS.includes(approver)) fields.approver = "Please choose who approves this.";
+  if (totalCost.error) fields.total_cost = totalCost.error;
   if (Object.keys(fields).length) return json({ error: "Please check the form.", fields }, 400);
 
   const created_at = nowISO();
@@ -935,9 +950,9 @@ async function reqCreate(request, env, ctx, origin) {
     const reference = "R" + makeReference(5);
     try {
       const res = await env.DB.prepare(
-        `INSERT INTO requisitions (reference, created_at, requestor, item, item_url, category, quantity, cost_pence, value_checked, kind, frequency, approver, notes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
-      ).bind(reference, created_at, requestor, item, item_url || null, category, quantity, cost_pence, value_checked, kind, frequency, approver, notes || null).run();
+        `INSERT INTO requisitions (reference, created_at, requestor, item, item_url, category, quantity, cost_pence, total_cost_pence, value_checked, kind, frequency, approver, notes, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`
+      ).bind(reference, created_at, requestor, item, item_url || null, category, quantity, cost_pence, totalCost.pence, value_checked, kind, frequency, approver, notes || null).run();
 
       if (res.meta.changes === 1) {
         const row = await env.DB.prepare(`SELECT ${REQ_COLS} FROM requisitions WHERE id = ?`).bind(res.meta.last_row_id).first();
@@ -973,7 +988,7 @@ async function reqList(env, url) {
   // headline "how much have we spent" figures stay stable as you filter.
   const totalsRows = (await env.DB.prepare(
     `SELECT status, category, kind, frequency, COUNT(*) AS n,
-            COALESCE(SUM(cost_pence * quantity), 0) AS pence
+            COALESCE(SUM(COALESCE(total_cost_pence, cost_pence * quantity)), 0) AS pence
      FROM requisitions GROUP BY status, category, kind, frequency`
   ).all()).results;
 
@@ -1041,6 +1056,18 @@ async function reqDecision(request, env, id) {
   return json({ ok: true, requisition: row });
 }
 
+async function reqUpdateCost(request, env, id) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "Invalid request" }, 400); }
+  const { pence, error } = parseTotalCost(body?.total_cost);
+  if (error) return json({ error }, 400);
+  const row = await env.DB.prepare(
+    `UPDATE requisitions SET total_cost_pence = ? WHERE id = ? RETURNING ${REQ_COLS}`
+  ).bind(pence, id).first();
+  if (!row) return json({ error: "Requisition not found." }, 404);
+  return json({ ok: true, requisition: row });
+}
+
 async function reqDelete(env, id) {
   const existing = await env.DB.prepare("SELECT id FROM requisitions WHERE id = ?").bind(id).first();
   if (!existing) return json({ error: "Requisition not found." }, 404);
@@ -1050,7 +1077,7 @@ async function reqDelete(env, id) {
 
 async function reqExport(env) {
   const rows = (await env.DB.prepare(
-    `SELECT reference, created_at, requestor, item, item_url, category, quantity, cost_pence, value_checked, kind, frequency, approver, status, decided_at, decided_by, notes
+    `SELECT ${REQ_COLS}
      FROM requisitions ORDER BY created_at`
   ).all()).results;
 

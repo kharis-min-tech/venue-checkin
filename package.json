@@ -10,7 +10,9 @@
     "db:init:local": "wrangler d1 execute venue-checkin-db --local --file=./schema.sql",
     "db:init:remote": "wrangler d1 execute venue-checkin-db --remote --file=./schema.sql",
     "db:migrate:local": "wrangler d1 execute venue-checkin-db --local --file=./migrations/001_requisition_quantity_and_value_check.sql",
-    "db:migrate:remote": "wrangler d1 execute venue-checkin-db --remote --file=./migrations/001_requisition_quantity_and_value_check.sql"
+    "db:migrate:remote": "wrangler d1 execute venue-checkin-db --remote --file=./migrations/001_requisition_quantity_and_value_check.sql",
+    "db:migrate:total-cost:local": "wrangler d1 execute venue-checkin-db --local --file=./migrations/002_requisition_total_cost.sql",
+    "db:migrate:total-cost:remote": "wrangler d1 execute venue-checkin-db --remote --file=./migrations/002_requisition_total_cost.sql"
   },
   "devDependencies": {
     "wrangler": "^4.40.0"
